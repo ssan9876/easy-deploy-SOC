@@ -8,6 +8,7 @@
 : "${SOC_NETBIOS:=SOCLAB}"               # NetBIOS name (derive if you change domain)
 : "${SOC_ADMIN_PASSWORD:=}"              # Blank => generated & saved to state
 : "${SOC_USER_PASSWORD:=}"               # Password for lab AD/Linux users (blank => generated)
+: "${SOC_WEAK_SVC_PASSWORD:=Summer2025!}" # Deliberately weak, crackable pw for svc_sql (Kerberoast lab)
 : "${SOC_LINUX_USER:=analyst}"           # Default user on Linux VMs
 
 # Where generated secrets + lab facts are persisted between script runs.

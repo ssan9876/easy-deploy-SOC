@@ -1,0 +1,85 @@
+<!--
+  easy-deploy-SOC — starter custom detection rules for the hands-on labs.
+
+  Install on the Wazuh MANAGER (soc-wazuh01):
+    1. Append these <rule> blocks into /var/ossec/etc/rules/local_rules.xml
+       (keep them inside a <group> ... </group>).
+    2. Test decoding:  /var/ossec/bin/wazuh-logtest
+    3. Restart:        systemctl restart wazuh-manager
+
+  These are LEARNING STARTERS, not production rules. Field names
+  (win.eventdata.*) and thresholds vary by Wazuh version and your Sysmon config —
+  verify each against real events in Discover and tune. That tuning IS the lab.
+  Custom rule IDs must be >= 100000.
+-->
+<group name="soc_lab,">
+
+  <!-- Lab 01 — ANONYMOUS LOGON to a domain controller (recon / null session) -->
+  <rule id="100101" level="8">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4624$</field>
+    <field name="win.eventdata.targetUserName">^ANONYMOUS LOGON$</field>
+    <field name="win.eventdata.logonType">^3$</field>
+    <description>SOC lab: anonymous network logon to a Windows host (possible enumeration)</description>
+    <mitre><id>T1087.002</id></mitre>
+  </rule>
+
+  <!-- Lab 02 — password spray: many pre-auth failures from one source, fast -->
+  <rule id="100201" level="5">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4771$</field>
+    <description>SOC lab: Kerberos pre-authentication failed (single event)</description>
+    <mitre><id>T1110.003</id></mitre>
+  </rule>
+  <rule id="100202" level="12" frequency="8" timeframe="60">
+    <if_matched_sid>100201</if_matched_sid>
+    <same_source_ip />
+    <description>SOC lab: possible password spray (many Kerberos pre-auth failures from one source)</description>
+    <mitre><id>T1110.003</id></mitre>
+  </rule>
+
+  <!-- Lab 03 — Kerberoasting: RC4 service ticket requested -->
+  <rule id="100301" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4769$</field>
+    <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+    <description>SOC lab: possible Kerberoasting (RC4 TGS requested) — check the target SPN</description>
+    <mitre><id>T1558.003</id></mitre>
+  </rule>
+
+  <!-- Lab 04 — AS-REP roasting: TGT requested with no pre-authentication -->
+  <rule id="100401" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4768$</field>
+    <field name="win.eventdata.preAuthType">^0$</field>
+    <description>SOC lab: AS-REP roasting (Kerberos TGT with no pre-auth)</description>
+    <mitre><id>T1558.004</id></mitre>
+  </rule>
+
+  <!-- Lab 05 — lateral movement: service install (psexec-style) -->
+  <rule id="100501" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^7045$</field>
+    <description>SOC lab: new Windows service installed (possible psexec-style lateral movement)</description>
+    <mitre><id>T1569.002</id></mitre>
+  </rule>
+
+  <!-- Lab 05 — lateral movement: WMI spawning a shell (wmiexec-style) -->
+  <rule id="100502" level="12">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.parentImage">WmiPrvSE\.exe$</field>
+    <field name="win.eventdata.image">\\(cmd|powershell)\.exe$</field>
+    <description>SOC lab: WmiPrvSE spawned a command shell (possible WMI lateral movement)</description>
+    <mitre><id>T1047</id></mitre>
+  </rule>
+
+  <!-- Bonus — anyone added to Domain Admins (the planted 'helpdesk' weakness) -->
+  <rule id="100601" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4728$</field>
+    <field name="win.eventdata.targetUserName">Domain Admins</field>
+    <description>SOC lab: member added to Domain Admins (privileged group change)</description>
+    <mitre><id>T1098</id></mitre>
+  </rule>
+
+</group>

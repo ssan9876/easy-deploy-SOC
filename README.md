@@ -153,6 +153,9 @@ every VM the toolkit created and cleans up generated answer ISOs / snippets.
 
 - [docs/LEARNING.md](docs/LEARNING.md) — **start here to learn**: a phased
   SOC/blue-team roadmap (attack → observe → detect) built around this exact lab.
+- [labs/](labs/) — **hands-on exercises**: run real attacks (enumeration,
+  password spray, Kerberoasting, AS-REP, lateral movement) from the analyst box,
+  each paired with the events it generates and a Wazuh detection to build.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the automation works end to end.
 - [docs/USAGE.md](docs/USAGE.md) — walkthrough, practice scenarios, timings.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — when something doesn't come up.

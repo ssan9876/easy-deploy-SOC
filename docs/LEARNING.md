@@ -94,6 +94,10 @@ an SPN** (Kerberoasting target).
 
 Do each attack, **then** hunt it in Wazuh and note the detection opportunity.
 
+> 🧪 **Guided versions of everything below live in [`../labs/`](../labs/)** — each
+> lab runs the attack from the analyst box and ships a `DETECTION.md` with the
+> exact events + a Wazuh rule to write. Start there if you'd rather run than read.
+
 **Recon / enumeration** (T1046, T1087, T1069)
 - [ ] `nmap -sV -p- 10.0.0.10` and `10.0.0.20`. What's exposed?
 - [ ] SMB: `smbclient -L //10.0.0.10 -N`; install and run `enum4linux-ng`.

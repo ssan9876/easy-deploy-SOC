@@ -9,7 +9,9 @@ Start-Transcript -Path 'C:\provision\dc-stage2.log' -Append | Out-Null
 $Domain    = '@@DOMAIN@@'
 $SiemIP    = '@@SIEM_IP@@'
 $UserPass  = '@@USERPASS@@'
+$WeakSvc   = '@@WEAK_SVC_PASSWORD@@'   # deliberately weak, crackable service-account pw
 $Upstream  = '@@UPSTREAM_DNS@@'
+$DcHost    = $env:COMPUTERNAME
 
 # Wait for AD web services to come up after the promotion reboot.
 $dn = ($Domain.Split('.') | ForEach-Object { "DC=$_" }) -join ','
@@ -33,21 +35,26 @@ if (-not (Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$ouLab'" -Err
     New-ADOrganizationalUnit -Name 'SOCLab' -Path $dn -ProtectedFromAccidentalDeletion $false
 }
 
-$sec = ConvertTo-SecureString $UserPass -AsPlainText -Force
+# Planted weaknesses for the hands-on labs (see docs/LEARNING.md, labs/):
+#   helpdesk -> Domain Admins (privilege-escalation / lateral-movement target)
+#   svc_sql  -> has an SPN + a weak password (Kerberoasting target that cracks)
 $users = @(
-    @{ sam='jsmith';  name='John Smith';   admin=$false },
-    @{ sam='awong';   name='Alice Wong';   admin=$false },
-    @{ sam='svc_sql'; name='SQL Service';  admin=$false },
-    @{ sam='helpdesk';name='Help Desk';    admin=$true  }   # over-privileged on purpose
+    @{ sam='jsmith';  name='John Smith';  admin=$false; pass=$UserPass; spn=$null },
+    @{ sam='awong';   name='Alice Wong';  admin=$false; pass=$UserPass; spn=$null },
+    @{ sam='svc_sql'; name='SQL Service'; admin=$false; pass=$WeakSvc;
+       spn="MSSQLSvc/$DcHost.$Domain:1433" },
+    @{ sam='helpdesk';name='Help Desk';   admin=$true;  pass=$UserPass; spn=$null }
 )
 foreach ($u in $users) {
     if (-not (Get-ADUser -Filter "SamAccountName -eq '$($u.sam)'" -ErrorAction SilentlyContinue)) {
+        $sec = ConvertTo-SecureString $u.pass -AsPlainText -Force
         New-ADUser -SamAccountName $u.sam -Name $u.name `
             -AccountPassword $sec -Enabled $true `
             -PasswordNeverExpires $true -Path $ouLab `
             -UserPrincipalName "$($u.sam)@$Domain"
         if ($u.admin) { Add-ADGroupMember -Identity 'Domain Admins' -Members $u.sam }
-        Write-Host "Created user $($u.sam)"
+        if ($u.spn)   { Set-ADUser -Identity $u.sam -ServicePrincipalNames @{Add=$u.spn} }
+        Write-Host "Created user $($u.sam)$(if($u.spn){" with SPN $($u.spn)"})"
     }
 }
 
