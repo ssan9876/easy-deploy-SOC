@@ -1,0 +1,5 @@
+# Local scratch / rendered artifacts
+*.log
+*.part
+lab.env
+/tmp-render/
