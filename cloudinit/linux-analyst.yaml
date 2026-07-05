@@ -1,0 +1,59 @@
+#cloud-config
+# easy-deploy-SOC: Linux analyst / attacker workstation (Ubuntu 22.04).
+# Ships a Wazuh agent to the SIEM and a starter kit of blue/red tools.
+# Rendered by scripts/deploy-linux.sh; @@NAME@@ placeholders are substituted.
+hostname: @@HOSTNAME@@
+manage_etc_hosts: true
+
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
+users:
+  - name: @@LINUX_USER@@
+    groups: [sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: @@USER_PWHASH@@
+
+package_update: true
+package_upgrade: false
+packages:
+  - curl
+  - git
+  - tmux
+  - jq
+  - net-tools
+  - dnsutils
+  - tcpdump
+  - nmap
+  - python3-pip
+  - ldap-utils          # ldapsearch — enumerate the DC
+  - smbclient            # poke at SMB shares
+  - krb5-user            # kerberos tooling
+
+write_files:
+  - path: /root/install-agent.sh
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > /var/log/wazuh-agent-install.log 2>&1
+      SIEM='@@SIEM_IP@@'
+      NAME='@@HOSTNAME@@'
+      echo "== Installing Wazuh agent -> $SIEM =="
+      curl -sO https://packages.wazuh.com/4.9/wazuh-install-assistant/wazuh-agent-installer.sh 2>/dev/null || true
+      # Package-repo install (works headless):
+      curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+      echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" > /etc/apt/sources.list.d/wazuh.list
+      apt-get update -y
+      WAZUH_MANAGER="$SIEM" WAZUH_AGENT_NAME="$NAME" apt-get install -y wazuh-agent
+      systemctl daemon-reload
+      systemctl enable --now wazuh-agent
+      echo "== Wazuh agent active =="
+
+runcmd:
+  - [ bash, /root/install-agent.sh ]
+
+final_message: "easy-deploy-SOC analyst box ready. User: @@LINUX_USER@@. Tools: nmap, ldapsearch, smbclient, krb5. Wazuh agent -> @@SIEM_IP@@."

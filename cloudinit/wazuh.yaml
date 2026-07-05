@@ -1,0 +1,47 @@
+#cloud-config
+# easy-deploy-SOC: Wazuh SIEM all-in-one (manager + indexer + dashboard).
+# Rendered by scripts/deploy-siem.sh; @@NAME@@ placeholders are substituted.
+hostname: @@HOSTNAME@@
+manage_etc_hosts: true
+
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
+users:
+  - name: @@LINUX_USER@@
+    groups: [sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: @@USER_PWHASH@@
+
+package_update: true
+packages:
+  - curl
+  - gnupg
+  - apt-transport-https
+
+write_files:
+  - path: /root/install-wazuh.sh
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > /var/log/wazuh-install.log 2>&1
+      echo "== easy-deploy-SOC: installing Wazuh all-in-one =="
+      cd /root
+      curl -sO https://packages.wazuh.com/4.9/wazuh-install.sh
+      # -a = all-in-one (manager, indexer, dashboard) with generated certs/passwords.
+      bash wazuh-install.sh -a -i || bash wazuh-install.sh -a
+      echo "== Wazuh install finished. Credentials in /root/wazuh-install-files.tar =="
+      # Surface the admin password to a well-known file for convenience.
+      if [ -f wazuh-install-files.tar ]; then
+        tar -xf wazuh-install-files.tar -C /root/ wazuh-install-files/wazuh-passwords.txt 2>/dev/null || true
+        cp -f /root/wazuh-install-files/wazuh-passwords.txt /root/WAZUH-CREDENTIALS.txt 2>/dev/null || true
+      fi
+
+runcmd:
+  - [ bash, /root/install-wazuh.sh ]
+
+final_message: "easy-deploy-SOC Wazuh SIEM boot complete. Dashboard: https://@@IP@@ (admin). Install log: /var/log/wazuh-install.log"
