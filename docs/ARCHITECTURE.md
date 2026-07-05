@@ -90,7 +90,29 @@ password live inside the YAML (`openssl passwd -6`).
 
 ## Networking
 
-All VMs attach to `SOC_BRIDGE` (default `vmbr0`), optionally VLAN-tagged via
-`SOC_VLAN`. Addressing is static in a `/24` (`SOC_SUBNET`), with the DC at `.10`
-serving DNS for the domain members. Point `SOC_GATEWAY` at whatever provides the
-lab's route to the internet (your router, a pfSense/OPNsense VM, etc.).
+Two modes, chosen by `SOC_NET_MODE`:
+
+- **`isolated` (default).** `scripts/lib/network.sh` creates a dedicated bridge
+  (`SOC_LAB_BRIDGE`, default `vmbr9`) with no physical ports, gives the Proxmox
+  host the gateway address `SOC_GATEWAY` (`10.0.0.1`) on it, and — when
+  `SOC_NET_NAT=1` — enables IP forwarding plus an iptables `MASQUERADE` rule out
+  the host's WAN interface (auto-detected from the default route). The lab can
+  reach the internet for provisioning but is walled off from the host's LAN. The
+  bridge stanza (including the NAT `post-up`/`post-down` rules so they persist
+  across reboots) is written to `/etc/network/interfaces` inside
+  `# BEGIN/END easy-deploy-SOC` markers and applied with `ifreload -a`. Creation
+  is idempotent — it only ever rewrites its own marked block — and it refuses to
+  touch a bridge name that already exists and isn't ours. Teardown removes the
+  block and deletes the bridge.
+- **`existing`.** VMs attach to a bridge you already run (`SOC_BRIDGE`, default
+  `vmbr0`) using a gateway/router you already have (`SOC_GATEWAY`). No host
+  network configuration is changed.
+
+Addressing is static in a `/24` (`SOC_SUBNET`, default `10.0.0`), optionally
+VLAN-tagged via `SOC_VLAN`. DNS is arranged so every box can resolve both the
+domain and the internet even though the gateway itself isn't a resolver: the DC
+(`10.0.0.10`) serves `soclab.local` and forwards external lookups to
+`SOC_UPSTREAM_DNS` (default `1.1.1.1`); the Windows client and the analyst box
+use the DC for DNS (the analyst also lists the upstream resolver as a fallback so
+its package installs work before the DC's DNS is ready); the SIEM, not being a
+domain member, resolves directly via the upstream resolver.

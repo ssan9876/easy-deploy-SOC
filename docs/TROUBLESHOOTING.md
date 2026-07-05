@@ -15,6 +15,38 @@ Proxmox ISO storage.
    SOC_WINSRV_ISO_NAME=my-server2022.iso SOC_WIN11_ISO_NAME=my-win11.iso ./scripts/deploy-dc.sh
    ```
 
+## Isolated lab network / no internet in the VMs
+
+In the default `isolated` mode the deployer adds a `vmbr9` bridge (`10.0.0.1/24`)
+to `/etc/network/interfaces` and NATs the lab out the host's WAN interface.
+
+- **Nothing happens / bridge didn't apply.** Ensure `ifupdown2` is installed
+  (standard on Proxmox); the script uses `ifreload -a`. Check the block was added
+  between `# BEGIN easy-deploy-SOC` and `# END easy-deploy-SOC`.
+- **VMs can't reach the internet.** The host needs a working default route (the
+  NAT egress interface is taken from `ip route show default`). Confirm
+  forwarding: `sysctl net.ipv4.ip_forward` should be `1`, and
+  `iptables -t nat -L POSTROUTING` should show the `MASQUERADE` for
+  `10.0.0.0/24`. If your host firewalls the `FORWARD` chain, allow the lab
+  subnet.
+- **"Bridge vmbrX already exists and wasn't created by us."** Pick a free bridge
+  name with `SOC_LAB_BRIDGE=vmbr9` (or another unused number), or use
+  `SOC_NET_MODE=existing` to attach to a bridge you already have.
+- **Want it on a bridge you already run?** `SOC_NET_MODE=existing SOC_BRIDGE=vmbr0
+  SOC_GATEWAY=<your-router>` — no host network changes are made.
+- **Remove the lab bridge later:** the teardown (`./scripts/destroy-lab.sh` or
+  menu → Destroy) offers to remove it, or run it directly:
+  `source scripts/lib/{core,config,proxmox,network}.sh; destroy_lab_network`.
+
+## Name resolution fails during provisioning
+
+Every box is set up to resolve both the domain and the internet, but if a VM
+came up before the DC's DNS was ready you can see transient failures. The analyst
+box lists the upstream resolver (`SOC_UPSTREAM_DNS`, default `1.1.1.1`) as a
+fallback; the SIEM uses it directly. If the DC never forwards external names,
+confirm `Get-DnsServerForwarder` on the DC lists the upstream IP (added by
+`dc-stage2.ps1`).
+
 ## "No storage advertises 'snippets' content"
 
 Cloud-init needs a Snippets-enabled storage. Enable it under
@@ -41,7 +73,7 @@ unless you load the VirtIO driver from the attached `virtio-win` ISO during the
 The client points DNS at the DC and waits up to ~15 minutes for it. Check:
 
 - The **DC finished promoting** (it reboots twice; `soclab.local` must resolve).
-  From the client console: `Resolve-DnsName soclab.local -Server 10.10.10.10`.
+  From the client console: `Resolve-DnsName soclab.local -Server 10.0.0.10`.
 - Both are on the **same bridge/VLAN** and subnet.
 - Re-run the join manually on the client:
   `powershell -File C:\provision\join-domain.ps1`. Logs are in

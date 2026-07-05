@@ -34,13 +34,18 @@ Credentials are on the Proxmox host at `/var/lib/easy-deploy-soc/lab.env`.
 cat /var/lib/easy-deploy-soc/lab.env
 ```
 
-- **RDP** to the DC (`10.10.10.10`) and client (`10.10.10.20`) as
+- **RDP** to the DC (`10.0.0.10`) and client (`10.0.0.20`) as
   `Administrator` / `SOC_ADMIN_PASSWORD` (DC) or `labadmin` (client). After the
   join, log into the client with `SOCLAB\Administrator` too.
-- **SSH** to the analyst box (`10.10.10.30`) and SIEM (`10.10.10.40`) as
+- **SSH** to the analyst box (`10.0.0.30`) and SIEM (`10.0.0.40`) as
   `analyst` / `SOC_USER_PASSWORD`.
-- **Wazuh dashboard**: `https://10.10.10.40` as `admin`. The generated admin
+- **Wazuh dashboard**: `https://10.0.0.40` as `admin`. The generated admin
   password is on the SIEM VM at `/root/WAZUH-CREDENTIALS.txt`.
+
+> In the default isolated network the lab lives on its own `10.0.0.0/24` bridge
+> (`vmbr9`). To reach these IPs from your workstation, connect from the Proxmox
+> host (which is on `10.0.0.1`), use the VM consoles in the Proxmox UI, or add a
+> route to `10.0.0.0/24` via the Proxmox host.
 
 Confirm telemetry is flowing under **Wazuh → Agents** — you should see
 `soc-dc01`, `soc-win11`, and `soc-linux01` reporting.

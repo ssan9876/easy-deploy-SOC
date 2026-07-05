@@ -17,6 +17,7 @@ $NetBIOS   = '@@NETBIOS@@'
 $IP        = '@@IP@@'
 $Prefix    = @@PREFIX@@
 $Gateway   = '@@GATEWAY@@'
+$Upstream  = '@@UPSTREAM_DNS@@'
 $SafePass  = '@@ADMINPASS@@'
 
 Write-Host "== easy-deploy-SOC DC provisioning for $Domain =="
@@ -43,8 +44,9 @@ Remove-NetRoute -InterfaceIndex $if.ifIndex -Confirm:$false -ErrorAction Silentl
 
 New-NetIPAddress -InterfaceIndex $if.ifIndex -IPAddress $IP -PrefixLength $Prefix `
     -DefaultGateway $Gateway -ErrorAction SilentlyContinue | Out-Null
-# Before promotion, resolve via the gateway; Install-ADDSForest repoints DNS to self.
-Set-DnsClientServerAddress -InterfaceIndex $if.ifIndex -ServerAddresses '127.0.0.1',$Gateway
+# Before promotion, resolve via an upstream resolver; Install-ADDSForest then
+# repoints the DC's own DNS client to itself (127.0.0.1).
+Set-DnsClientServerAddress -InterfaceIndex $if.ifIndex -ServerAddresses '127.0.0.1',$Upstream
 
 # --- 3. Install AD DS + DNS and promote to a new forest ----------------------
 if (Get-Service NTDS -ErrorAction SilentlyContinue) {

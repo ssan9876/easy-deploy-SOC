@@ -25,10 +25,12 @@ deploy_linux() {
       "HOSTNAME=${SOC_LINUX_NAME}" "LINUX_USER=${SOC_LINUX_USER}" \
       "USER_PWHASH=${pwhash}" "SIEM_IP=${SOC_SIEM_IP}")"
 
-  # Analyst box uses the DC for DNS so it can resolve/enumerate the domain.
+  # Analyst box uses the DC for DNS (to resolve/enumerate the domain) with the
+  # upstream resolver as fallback, so its own package installs work even before
+  # the DC's DNS is fully up.
   build_linux_vm "$vmid" "$SOC_LINUX_NAME" \
     "$SOC_LINUX_CORES" "$SOC_LINUX_RAM" "$SOC_LINUX_DISK" \
-    "$storage" "$SOC_BRIDGE" "$SOC_VLAN" "$SOC_LINUX_IP" "$SOC_DC_IP" \
+    "$storage" "$SOC_BRIDGE" "$SOC_VLAN" "$SOC_LINUX_IP" "${SOC_DC_IP} ${SOC_UPSTREAM_DNS}" \
     "$img" "$snippet"
 
   state_set SOC_LINUX_VMID "$vmid"

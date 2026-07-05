@@ -9,6 +9,7 @@ Start-Transcript -Path 'C:\provision\dc-stage2.log' -Append | Out-Null
 $Domain    = '@@DOMAIN@@'
 $SiemIP    = '@@SIEM_IP@@'
 $UserPass  = '@@USERPASS@@'
+$Upstream  = '@@UPSTREAM_DNS@@'
 
 # Wait for AD web services to come up after the promotion reboot.
 $dn = ($Domain.Split('.') | ForEach-Object { "DC=$_" }) -join ','
@@ -16,6 +17,15 @@ for ($i=0; $i -lt 30; $i++) {
     try { Import-Module ActiveDirectory -ErrorAction Stop; Get-ADDomain -ErrorAction Stop | Out-Null; break }
     catch { Start-Sleep 10 }
 }
+
+# Forward internet lookups upstream so domain members (using the DC for DNS) can
+# still resolve external names for updates / agent downloads.
+try {
+    if (-not (Get-DnsServerForwarder).IPAddress) {
+        Add-DnsServerForwarder -IPAddress $Upstream -ErrorAction Stop
+        Write-Host "Added DNS forwarder -> $Upstream"
+    }
+} catch { Write-Warning "Could not set DNS forwarder: $_" }
 
 # --- Lab OUs and users -------------------------------------------------------
 $ouLab = "OU=SOCLab,$dn"

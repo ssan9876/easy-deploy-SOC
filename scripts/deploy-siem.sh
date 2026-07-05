@@ -25,10 +25,10 @@ deploy_siem() {
       "HOSTNAME=${SOC_SIEM_NAME}" "LINUX_USER=${SOC_LINUX_USER}" \
       "USER_PWHASH=${pwhash}" "IP=${SOC_SIEM_IP}")"
 
-  # SIEM uses the gateway for DNS (it isn't a domain member).
+  # SIEM isn't a domain member: resolve directly via the upstream DNS.
   build_linux_vm "$vmid" "$SOC_SIEM_NAME" \
     "$SOC_SIEM_CORES" "$SOC_SIEM_RAM" "$SOC_SIEM_DISK" \
-    "$storage" "$SOC_BRIDGE" "$SOC_VLAN" "$SOC_SIEM_IP" "$SOC_GATEWAY" \
+    "$storage" "$SOC_BRIDGE" "$SOC_VLAN" "$SOC_SIEM_IP" "$SOC_UPSTREAM_DNS" \
     "$img" "$snippet"
 
   state_set SOC_SIEM_VMID "$vmid"

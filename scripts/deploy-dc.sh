@@ -34,9 +34,11 @@ deploy_dc() {
     "HOSTNAME=${SOC_DC_NAME}" "ADMINPASS=$(xml_escape "${SOC_ADMIN_PASSWORD}")"
   render_template "${A}/dc/setup-dc.ps1" "${work}/provision/setup-dc.ps1" \
     "DOMAIN=${SOC_DOMAIN}" "NETBIOS=${SOC_NETBIOS}" "IP=${SOC_DC_IP}" \
-    "PREFIX=${SOC_NETMASK}" "GATEWAY=${SOC_GATEWAY}" "ADMINPASS=${SOC_ADMIN_PASSWORD}"
+    "PREFIX=${SOC_NETMASK}" "GATEWAY=${SOC_GATEWAY}" "UPSTREAM_DNS=${SOC_UPSTREAM_DNS}" \
+    "ADMINPASS=${SOC_ADMIN_PASSWORD}"
   render_template "${A}/dc/dc-stage2.ps1" "${work}/provision/dc-stage2.ps1" \
-    "DOMAIN=${SOC_DOMAIN}" "SIEM_IP=${SOC_SIEM_IP}" "USERPASS=${SOC_USER_PASSWORD}"
+    "DOMAIN=${SOC_DOMAIN}" "SIEM_IP=${SOC_SIEM_IP}" "USERPASS=${SOC_USER_PASSWORD}" \
+    "UPSTREAM_DNS=${SOC_UPSTREAM_DNS}"
   render_template "${A}/install-agents.ps1" "${work}/provision/install-agents.ps1" \
     "SIEM_IP=${SOC_SIEM_IP}" "SYSMON_CONFIG_URL=${SOC_SYSMON_CONFIG_URL}" \
     "WAZUH_AGENT_MSI_URL=${SOC_WAZUH_AGENT_MSI_URL}"

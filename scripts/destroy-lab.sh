@@ -6,6 +6,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${HERE}/lib/core.sh"
 source "${HERE}/lib/config.sh"
 source "${HERE}/lib/proxmox.sh"
+source "${HERE}/lib/network.sh"
 
 destroy_lab() {
   require_root; require_pve
@@ -49,6 +50,13 @@ destroy_lab() {
   local sndir; sndir="$(snippet_storage_path "$(resolve_snippet_storage)")"
   rm -f "${sndir}"/soc-linux-*.yaml "${sndir}"/soc-wazuh-*.yaml 2>/dev/null || true
   msg_ok "Removed generated answer ISOs and cloud-init snippets."
+
+  # Offer to remove the isolated lab bridge, if we created one.
+  if grep -q "easy-deploy-SOC" "$SOC_IF_FILE" 2>/dev/null; then
+    if wt_yesno "Network" "Also remove the isolated lab bridge and its NAT rules?"; then
+      destroy_lab_network
+    fi
+  fi
 
   if wt_yesno "State" "Also remove the state file (${f}) with saved credentials?"; then
     rm -f "$f"; msg_ok "Removed ${f}"

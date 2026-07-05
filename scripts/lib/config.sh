@@ -14,17 +14,35 @@
 : "${SOC_STATE_DIR:=/var/lib/easy-deploy-soc}"
 
 # --- Networking -------------------------------------------------------------
-: "${SOC_BRIDGE:=vmbr0}"                 # Proxmox bridge to attach VMs to
+# Network mode:
+#   isolated -> create a dedicated, private Proxmox bridge for the lab, with the
+#               Proxmox host as its gateway and NAT to the internet. The lab is
+#               walled off from your existing LAN. (default)
+#   existing -> attach to an existing bridge you already have (set SOC_BRIDGE),
+#               using a router/gateway you already run.
+: "${SOC_NET_MODE:=isolated}"
+: "${SOC_LAB_BRIDGE:=vmbr9}"             # Bridge created/used in isolated mode
+: "${SOC_NET_NAT:=1}"                    # 1 = NAT the lab subnet out to the internet
+: "${SOC_UPSTREAM_DNS:=1.1.1.1}"         # Resolver for internet lookups (via NAT)
+
 : "${SOC_VLAN:=}"                        # Optional VLAN tag (blank = none)
-: "${SOC_SUBNET:=10.10.10}"              # /24 lab subnet (no trailing octet)
-: "${SOC_GATEWAY:=10.10.10.1}"           # Lab gateway (your router / pfSense / vmbr)
+: "${SOC_SUBNET:=10.0.0}"                # /24 lab subnet (no trailing octet)
+: "${SOC_GATEWAY:=10.0.0.1}"             # Lab gateway (the Proxmox host in isolated mode)
 : "${SOC_NETMASK:=24}"                   # CIDR prefix length
 
+# The bridge VMs attach to. In isolated mode this defaults to the lab bridge;
+# in existing mode it defaults to vmbr0. An explicit SOC_BRIDGE always wins.
+if [[ "$SOC_NET_MODE" == "isolated" ]]; then
+  : "${SOC_BRIDGE:=$SOC_LAB_BRIDGE}"
+else
+  : "${SOC_BRIDGE:=vmbr0}"
+fi
+
 # Static IPs for lab members (last octet appended to SOC_SUBNET)
-: "${SOC_DC_IP:=10.10.10.10}"            # Domain Controller (also DNS)
-: "${SOC_CLIENT_IP:=10.10.10.20}"        # Windows client
-: "${SOC_LINUX_IP:=10.10.10.30}"         # Linux analyst box
-: "${SOC_SIEM_IP:=10.10.10.40}"          # Wazuh SIEM manager
+: "${SOC_DC_IP:=10.0.0.10}"              # Domain Controller (also DNS)
+: "${SOC_CLIENT_IP:=10.0.0.20}"          # Windows client
+: "${SOC_LINUX_IP:=10.0.0.30}"           # Linux analyst box
+: "${SOC_SIEM_IP:=10.0.0.40}"            # Wazuh SIEM manager
 
 # --- VM identity ------------------------------------------------------------
 : "${SOC_VMID_BASE:=900}"                # First VMID; members use base+0..3
