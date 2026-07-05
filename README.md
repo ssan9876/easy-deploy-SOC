@@ -151,6 +151,8 @@ every VM the toolkit created and cleans up generated answer ISOs / snippets.
 
 ## Documentation
 
+- [docs/LEARNING.md](docs/LEARNING.md) — **start here to learn**: a phased
+  SOC/blue-team roadmap (attack → observe → detect) built around this exact lab.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the automation works end to end.
 - [docs/USAGE.md](docs/USAGE.md) — walkthrough, practice scenarios, timings.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — when something doesn't come up.
