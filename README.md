@@ -15,6 +15,32 @@ script builds everything below, unattended.
 
 ---
 
+## Start here (newcomer path)
+
+New to this? Follow it in order — deploy, learn the ground rules, drill each
+attack, then run a full incident end to end.
+
+1. **Deploy the lab.** Run the one-liner above on your Proxmox host and choose
+   *Deploy the FULL SOC lab*. Wait for the Windows installs to finish (~20–30
+   min). Grab your generated passwords from `/var/lib/easy-deploy-soc/lab.env`.
+   → details in [docs/USAGE.md](docs/USAGE.md).
+2. **Take a Proxmox snapshot of every VM** (label it `clean-baseline`). You'll
+   break things on purpose; this is your reset button.
+3. **Read the ground rules.** Skim [docs/LEARNING.md](docs/LEARNING.md) Phases 0–2
+   to learn the attack→observe→detect loop and the key Windows event IDs.
+4. **Confirm telemetry flows.** In the Wazuh dashboard (`https://10.0.0.40`),
+   check that `soc-dc01`, `soc-win11`, and `soc-linux01` show as active agents.
+5. **Run your first attack.** SSH to the analyst box and run
+   [`labs/01-enumeration`](labs/), then hunt it in Wazuh with the lab's
+   `DETECTION.md`. Work through labs 01 → 05.
+6. **Run the capstone.** [`labs/06-full-intrusion`](labs/06-full-intrusion/)
+   chains it all into one incident — reconstruct it and write it up with the
+   included incident-report template.
+
+Everything is safe to repeat: restore your snapshot and go again.
+
+---
+
 ## What it builds
 
 | VM | OS | Role | Default IP |
