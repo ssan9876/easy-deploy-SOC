@@ -73,6 +73,16 @@
     <mitre><id>T1047</id></mitre>
   </rule>
 
+  <!-- Lab 06 — DCSync: directory replication requested by a non-DC (T1003.006) -->
+  <rule id="100701" level="14">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4662$</field>
+    <field name="win.eventdata.properties">1131f6aa-9c07-11d1-f79f-00c04fc2dcd2</field>
+    <description>SOC lab: DCSync — DS-Replication-Get-Changes requested (possible domain credential theft)</description>
+    <mitre><id>T1003.006</id></mitre>
+    <!-- Tune: legitimate DCs replicate. Exclude your DC computer accounts (name ends in $). -->
+  </rule>
+
   <!-- Bonus — anyone added to Domain Admins (the planted 'helpdesk' weakness) -->
   <rule id="100601" level="12">
     <if_group>windows</if_group>

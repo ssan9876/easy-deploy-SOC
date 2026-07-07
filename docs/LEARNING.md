@@ -155,10 +155,17 @@ Do each attack, **then** hunt it in Wazuh and note the detection opportunity.
 
 ## Phase 6 — Incident response
 
+> 🎯 **The capstone lab [`../labs/06-full-intrusion/`](../labs/06-full-intrusion/)
+> is built for this phase.** It runs a full recon→foothold→Kerberoast→DA→lateral→
+> DCSync chain, then hands you a `HUNT-GUIDE.md` to reconstruct it and a blank
+> `INCIDENT-REPORT-TEMPLATE.md` to write it up — with a `GROUND-TRUTH.txt` answer
+> key to grade yourself against.
+
 - [ ] Learn the IR lifecycle (**PICERL**: Prep, Identify, Contain, Eradicate,
       Recover, Lessons-learned) or the NIST 4-phase model.
-- [ ] Run an end-to-end scenario: from the analyst box, "compromise" the client
-      (initial access → privesc → Kerberoast → DA), leaving natural artifacts.
+- [ ] Run the capstone (or your own scenario): from the analyst box, "compromise"
+      the domain (initial access → Kerberoast → DA → lateral → DCSync), leaving
+      natural artifacts.
 - [ ] As the analyst: **detect** it in Wazuh, **build a timeline** of what
       happened and when, **identify** patient zero and blast radius.
 - [ ] Practice containment (disable account, isolate host) and eradication, then

@@ -33,9 +33,13 @@ cd easy-deploy-SOC/labs
 | 03 | [Kerberoasting](03-kerberoasting/) | T1558.003 | **Yes — cracks `svc_sql`** |
 | 04 | [AS-REP roasting](04-asrep-roasting/) | T1558.004 | After `setup-on-dc.ps1` |
 | 05 | [Lateral movement](05-lateral-movement/) | T1021, T1569, T1047 | Yes (with admin creds) |
+| 06 | [**Full intrusion (capstone)**](06-full-intrusion/) | T1046→T1110→T1558→T1078→T1021→T1003.006 | Yes — chains it all + DCSync |
 
-Suggested order: **01 → 02 → 03 → 04 → 05** — it mirrors a real intrusion
-(discover → get a foothold → escalate → move).
+Suggested order: **01 → 02 → 03 → 04 → 05**, then the **06 capstone** — it mirrors
+a real intrusion (discover → foothold → escalate → move → own the domain). Labs
+01–05 teach each technique in isolation; lab 06 chains them into one incident you
+then reconstruct (Phase 5 hunting) and write up (Phase 6 IR) using the included
+`HUNT-GUIDE.md` and `INCIDENT-REPORT-TEMPLATE.md`.
 
 ## Running a lab
 

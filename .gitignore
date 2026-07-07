@@ -3,3 +3,9 @@
 *.part
 lab.env
 /tmp-render/
+
+# Lab run output / loot / answer keys (generated when running labs from a clone)
+labs/**/*.hashes
+labs/**/loot-*
+labs/**/cracked.txt
+labs/**/GROUND-TRUTH.txt
