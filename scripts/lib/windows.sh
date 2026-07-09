@@ -57,5 +57,30 @@ build_windows_vm() {
   msg_ok "Configured VM ${vmid} (${name})"
   msg_info "Starting ${name}; unattended Windows install will run now."
   qm start "$vmid" || die "Failed to start ${vmid}"
+  nudge_boot_from_cd "$vmid"
   msg_ok "${name} started (VMID ${vmid}). Watch it in the Proxmox console."
+}
+
+# Tap a key past the UEFI "Press any key to boot from CD or DVD..." prompt so the
+# unattended install starts with nobody at the console. Microsoft's install media
+# shows that prompt on every boot from the CD; without a keypress the firmware
+# gives up on the optical drive and falls through to the still-empty system disk,
+# reporting "no bootable media" — so the install never begins.
+#
+# The prompt only appears while the CD still outranks the disk in the boot order
+# (i.e. the first boot, before Windows is on the disk). We tap Enter for a bounded
+# window that comfortably covers the prompt but ends well inside WinPE's file-copy
+# phase, long before the first reboot — so later "press any key" prompts correctly
+# time out and boot the freshly-installed Windows instead of restarting Setup.
+nudge_boot_from_cd() { # vmid
+  local vmid="$1" end
+  command -v qm >/dev/null 2>&1 || return 0
+  end=$(( $(date +%s) + 120 ))
+  (
+    while [[ $(date +%s) -lt $end ]]; do
+      qm sendkey "$vmid" ret >/dev/null 2>&1 || true
+      sleep 3
+    done
+  ) &
+  msg_info "Auto-tapping the boot prompt so Setup starts hands-off (VMID ${vmid})."
 }

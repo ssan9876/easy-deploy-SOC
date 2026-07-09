@@ -28,7 +28,7 @@ build_linux_vm() {
     --scsihw virtio-scsi-single \
     --net0 "$net" \
     --agent enabled=1 \
-    --serial0 socket --vga serial0 \
+    --serial0 socket --vga std \
     || die "qm create failed for ${vmid}"
 
   # Import the cloud image straight onto scsi0 (Proxmox 7.2+ import-from).
