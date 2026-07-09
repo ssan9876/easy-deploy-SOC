@@ -53,6 +53,21 @@ Cloud-init needs a Snippets-enabled storage. Enable it under
 *Datacenter → Storage → (storage) → Edit → Content → check **Snippets***, or
 point `SOC_SNIPPET_STORAGE` at one that has it.
 
+## Windows install never starts / "no bootable media"
+
+Microsoft's UEFI install media shows a **"Press any key to boot from CD or
+DVD..."** prompt on every boot from the CD. With nobody at the console the prompt
+times out, the firmware gives up on the optical drive and falls through to the
+still-empty system disk, and OVMF reports **no bootable media** — so the install
+never begins. The deployer now taps a key past that prompt automatically for the
+first ~2 minutes after the VM starts (`nudge_boot_from_cd` in
+`scripts/lib/windows.sh`, via `qm sendkey`), so the install proceeds hands-off.
+
+- If you start a Windows VM by hand (e.g. `qm start`), open its console within a
+  few seconds and press a key yourself to get past the prompt.
+- The auto-tap only runs during the first boot window; later reboots intentionally
+  let the prompt time out so Windows' own UEFI boot entry on the disk takes over.
+
 ## Windows install seems stuck / loops on "Press any key to boot from CD"
 
 - The unattended install can sit on black screens for minutes — give it time.
@@ -60,6 +75,14 @@ point `SOC_SNIPPET_STORAGE` at one that has it.
   open the VM console, detach the Windows ISO from `ide0` (*Hardware → CD/DVD →
   Edit → Do not use any media*), and reboot. Windows' own UEFI boot entry then
   takes over. This is rare with the default `ide0;sata0` boot order.
+
+## Proxmox console (noVNC) is blank for the Linux / Wazuh VMs
+
+The Ubuntu VMs are created with a standard VGA display (`--vga std`) so the
+Proxmox **Console** (noVNC) shows a login prompt. If you customised the VM and set
+`--vga serial0`, the graphical console goes blank because all output is redirected
+to the serial port; switch it back to `std` under *Hardware → Display*, or use
+`qm terminal <vmid>` to reach the serial console instead.
 
 ## Windows install can't find a disk
 
