@@ -84,12 +84,21 @@ Proxmox **Console** (noVNC) shows a login prompt. If you customised the VM and s
 to the serial port; switch it back to `std` under *Hardware → Display*, or use
 `qm terminal <vmid>` to reach the serial console instead.
 
-## Windows install can't find a disk
+## Windows install can't find a disk / "no drive to install to"
 
-The default uses a **SATA** system disk specifically so no driver injection is
-needed. If you changed the disk bus to VirtIO SCSI, Setup won't see the disk
-unless you load the VirtIO driver from the attached `virtio-win` ISO during the
-"Where do you want to install Windows?" step. Keep SATA for hands-off installs.
+Two things have to line up for Setup to accept the disk:
+
+- **Disk bus.** The default uses a **SATA** system disk specifically so no driver
+  injection is needed. If you changed the disk bus to VirtIO SCSI, Setup won't see
+  the disk unless you load the VirtIO driver from the attached `virtio-win` ISO
+  during the "Where do you want to install Windows?" step. Keep SATA for hands-off
+  installs.
+- **Partition style.** The VMs boot **UEFI (OVMF)**, so the answer file lays the
+  disk out as **GPT** — an EFI System Partition (FAT32) + MSR + Windows (NTFS).
+  An MBR-style layout (an `Active` NTFS "System" partition) is rejected on UEFI
+  and makes Setup report no suitable install drive. If you edit
+  `autounattend/*/autounattend.xml`, keep the GPT layout unless you also switch
+  the VM to SeaBIOS.
 
 ## Client never joins the domain
 
