@@ -45,9 +45,9 @@ Everything is safe to repeat: restore your snapshot and go again.
 
 | VM | OS | Role | Default IP |
 |----|----|------|-----------|
-| `soc-dc01`   | Windows Server 2022 | **Domain Controller + DNS** — new forest `soclab.local` | `10.0.0.10` |
+| `soc-dc01`   | Windows Server 2022 (**Desktop Experience / full GUI**) | **Domain Controller + DNS** — new forest `soclab.local` | `10.0.0.10` |
 | `soc-win11`  | Windows 11          | **Domain-joined client** — Sysmon + Wazuh agent | `10.0.0.20` |
-| `soc-linux01`| Ubuntu 22.04        | **Analyst / attacker box** — nmap, ldapsearch, smbclient, krb5 + Wazuh agent | `10.0.0.30` |
+| `soc-linux01`| **Kali Linux** (XFCE desktop) | **Analyst / attacker box** — full Kali toolset + Wazuh agent | `10.0.0.30` |
 | `soc-wazuh01`| Ubuntu 22.04        | **Wazuh SIEM** (manager + indexer + dashboard) — collects logs from every endpoint | `10.0.0.40` |
 
 ```
@@ -67,10 +67,30 @@ Everything is safe to repeat: restore your snapshot and go again.
         └──────────────────────────┘
 ```
 
-Everything is provisioned **hands-off**: Windows installs via `autounattend.xml`,
-the DC promotes itself to a forest, the client waits for the DC and joins the
-domain, and the Linux boxes configure themselves via cloud-init. Endpoints ship
-Sysmon + Wazuh telemetry to the SIEM so you have data to hunt through on day one.
+Everything is provisioned **hands-off**: Windows installs via `autounattend.xml`
+(the DC installs the **Desktop Experience** GUI edition, not Server Core), the DC
+promotes itself to a forest, the client waits for the DC and joins the domain, and
+the Linux boxes configure themselves via cloud-init — the analyst box comes up as
+**Kali Linux with an XFCE desktop** and the full toolset. Endpoints ship Sysmon +
+Wazuh telemetry to the SIEM so you have data to hunt through on day one.
+
+### Reaching the Wazuh dashboard from your own PC
+
+The lab lives on an isolated subnet your workstation can't route to. So you can
+still open the SIEM, the deployer (in the default isolated mode) publishes a
+**port-forward on the Proxmox host**: browse to
+`https://<proxmox-host-ip>:8443` and it lands on the SIEM's `:443`. Change the
+port with `SOC_SIEM_PUBLISH_PORT`, or turn the forward off with
+`SOC_PUBLISH_SIEM=0`. The **Configure** menu also asks, and there's a
+**Publish** menu action to add it to an already-running lab.
+
+### Desktops & remote access
+
+- **`soc-dc01`** installs the full Windows Server **Desktop Experience** GUI.
+  RDP to `10.0.0.10` or use the Proxmox console.
+- **`soc-linux01`** is **Kali with an XFCE desktop** — open the Proxmox console
+  (it auto-logs into the desktop) or RDP to `10.0.0.30`. Set `SOC_LINUX_DESKTOP=0`
+  for a headless Kali box instead.
 
 ## Why these components
 
@@ -110,8 +130,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ssan9876/easy-deploy-SOC
 ## Requirements
 
 - **Proxmox VE 7.x or 8.x**, run the command as `root` on the host shell.
-- Enough free resources for the full lab: **~10 vCPU, ~18 GB RAM, ~200 GB disk**
-  (deploy components individually if that's tight).
+- Enough free resources for the full lab: **~10 vCPU, ~20 GB RAM, ~230 GB disk**
+  (the Kali desktop box is sized at 2 vCPU / 4 GB / 60 GB). Deploy components
+  individually if that's tight.
 - Outbound internet from the Proxmox host (to fetch ISOs, cloud images, agents,
   and — via NAT — for the lab VMs to provision themselves).
 - `ifupdown2` (standard on Proxmox) so the isolated bridge can be applied without
@@ -149,10 +170,16 @@ CPU/RAM/disk sizing, ISO URLs, agent versions).
 
 ## Credentials
 
-Passwords are generated on first run and saved to **`/var/lib/easy-deploy-soc/lab.env`**
-on the Proxmox host (mode `0600`). Set `SOC_ADMIN_PASSWORD` / `SOC_USER_PASSWORD`
-to choose your own. The Wazuh dashboard admin password is written on the SIEM VM
-at `/root/WAZUH-CREDENTIALS.txt` once its install finishes.
+You can **set your own passwords in the setup stage**: the menu's **Configure**
+screen prompts for the Windows Administrator / lab-admin password and the lab
+user (AD user / Kali analyst) password, each entered twice. Prefer env vars? Set
+`SOC_ADMIN_PASSWORD` / `SOC_USER_PASSWORD`. Leave either blank and a strong one
+is generated for you.
+
+Whatever you pick (or the generated values) are saved to
+**`/var/lib/easy-deploy-soc/lab.env`** on the Proxmox host (mode `0600`). The
+Wazuh dashboard admin password is written on the SIEM VM at
+`/root/WAZUH-CREDENTIALS.txt` once its install finishes.
 
 > Avoid a single-quote `'` in a custom password — it breaks the PowerShell
 > string literals used during unattended setup. Other symbols are fine.

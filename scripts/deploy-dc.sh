@@ -31,7 +31,8 @@ deploy_dc() {
   local A="${SOC_ASSET_DIR}/autounattend"
 
   render_template "${A}/dc/autounattend.xml" "${work}/autounattend.xml" \
-    "HOSTNAME=${SOC_DC_NAME}" "ADMINPASS=$(xml_escape "${SOC_ADMIN_PASSWORD}")"
+    "HOSTNAME=${SOC_DC_NAME}" "ADMINPASS=$(xml_escape "${SOC_ADMIN_PASSWORD}")" \
+    "IMAGE=$(xml_escape "${SOC_WINSRV_IMAGE}")"
   render_template "${A}/dc/setup-dc.ps1" "${work}/provision/setup-dc.ps1" \
     "DOMAIN=${SOC_DOMAIN}" "NETBIOS=${SOC_NETBIOS}" "IP=${SOC_DC_IP}" \
     "PREFIX=${SOC_NETMASK}" "GATEWAY=${SOC_GATEWAY}" "UPSTREAM_DNS=${SOC_UPSTREAM_DNS}" \

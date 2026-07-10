@@ -1,7 +1,8 @@
 #cloud-config
-# easy-deploy-SOC: Linux analyst / attacker workstation (Ubuntu 22.04).
-# Ships a Wazuh agent to the SIEM and a starter kit of blue/red tools.
-# Rendered by scripts/deploy-linux.sh; @@NAME@@ placeholders are substituted.
+# easy-deploy-SOC: Kali Linux analyst / attacker workstation.
+# Ships a Wazuh agent to the SIEM and — by default — a full XFCE desktop plus the
+# Kali toolset. Rendered by scripts/deploy-linux.sh; @@NAME@@ placeholders are
+# substituted at build time (@@DESKTOP@@ is 1 for desktop, 0 for headless).
 hostname: @@HOSTNAME@@
 manage_etc_hosts: true
 
@@ -19,6 +20,8 @@ users:
 
 package_update: true
 package_upgrade: false
+# A small, reliable base set so the box is useful even before the big desktop /
+# metapackage install finishes (or if it's disabled).
 packages:
   - curl
   - git
@@ -34,26 +37,64 @@ packages:
   - krb5-user            # kerberos tooling
 
 write_files:
-  - path: /root/install-agent.sh
+  - path: /root/setup-analyst.sh
     permissions: '0750'
     content: |
       #!/usr/bin/env bash
-      set -euo pipefail
-      exec > /var/log/wazuh-agent-install.log 2>&1
+      set -uo pipefail
+      exec > /var/log/soc-analyst-setup.log 2>&1
+      export DEBIAN_FRONTEND=noninteractive
+      DESKTOP='@@DESKTOP@@'
+      USER='@@LINUX_USER@@'
+
+      echo "== easy-deploy-SOC Kali analyst provisioning =="
+      apt-get update -y || true
+
+      if [ "$DESKTOP" = "1" ]; then
+        echo "== Installing Kali XFCE desktop + toolset (this takes a while) =="
+        # Desktop environment + display manager + remote desktop, then the
+        # standard Kali toolset. Kept as separate installs so a failure in the
+        # (large) toolset step still leaves a working desktop.
+        apt-get install -y --no-install-recommends \
+          kali-desktop-xfce lightdm lightdm-gtk-greeter xrdp dbus-x11 || true
+        apt-get install -y kali-linux-default || true
+
+        # Auto-login the analyst user so the Proxmox console lands on the desktop.
+        mkdir -p /etc/lightdm/lightdm.conf.d
+        cat > /etc/lightdm/lightdm.conf.d/10-soc-autologin.conf <<EOF
+      [Seat:*]
+      autologin-user=${USER}
+      autologin-user-timeout=0
+      user-session=xfce
+      EOF
+        # 'autologin' group is required for passwordless login on Debian/Kali.
+        groupadd -f autologin
+        usermod -aG autologin "${USER}" || true
+
+        # xrdp: RDP into the box from your own PC (uses the same XFCE session).
+        echo "startxfce4" > "/home/${USER}/.xsession"
+        chown "${USER}:${USER}" "/home/${USER}/.xsession"
+        systemctl enable xrdp || true
+        systemctl restart xrdp || true
+
+        systemctl enable lightdm || true
+        systemctl set-default graphical.target || true
+        systemctl isolate graphical.target || true
+        echo "== Desktop ready (console + RDP) =="
+      fi
+
+      echo "== Installing Wazuh agent -> @@SIEM_IP@@ =="
       SIEM='@@SIEM_IP@@'
       NAME='@@HOSTNAME@@'
-      echo "== Installing Wazuh agent -> $SIEM =="
-      curl -sO https://packages.wazuh.com/4.9/wazuh-install-assistant/wazuh-agent-installer.sh 2>/dev/null || true
-      # Package-repo install (works headless):
       curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
       echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" > /etc/apt/sources.list.d/wazuh.list
       apt-get update -y
       WAZUH_MANAGER="$SIEM" WAZUH_AGENT_NAME="$NAME" apt-get install -y wazuh-agent
       systemctl daemon-reload
       systemctl enable --now wazuh-agent
-      echo "== Wazuh agent active =="
+      echo "== Wazuh agent active; analyst box ready =="
 
 runcmd:
-  - [ bash, /root/install-agent.sh ]
+  - [ bash, /root/setup-analyst.sh ]
 
-final_message: "easy-deploy-SOC analyst box ready. User: @@LINUX_USER@@. Tools: nmap, ldapsearch, smbclient, krb5. Wazuh agent -> @@SIEM_IP@@."
+final_message: "easy-deploy-SOC Kali analyst box ready. User: @@LINUX_USER@@. Desktop=@@DESKTOP@@. Wazuh agent -> @@SIEM_IP@@."
