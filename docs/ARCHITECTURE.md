@@ -24,7 +24,7 @@ scripts/
     linux.sh               # build_linux_vm(), cloud-init snippet install
   deploy-dc.sh             # Windows Server DC
   deploy-client.sh         # Windows 11 client
-  deploy-linux.sh          # Ubuntu analyst box
+  deploy-linux.sh          # Kali analyst box (XFCE desktop)
   deploy-siem.sh           # Wazuh SIEM
   destroy-lab.sh           # teardown
 autounattend/              # Windows answer files + first-logon PowerShell
@@ -76,15 +76,18 @@ Reliability is favored over raw performance:
 
 ## Linux via cloud-init
 
-`build_linux_vm` imports the Ubuntu cloud image straight onto `scsi0`
-(`import-from`), attaches a cloud-init drive, and sets networking with `qm set
+`build_linux_vm` imports the cloud image straight onto `scsi0` (`import-from`),
+attaches a cloud-init drive, and sets networking with `qm set
 --ipconfig0/--nameserver`. The per-VM user-data is rendered from a template into
 a **Snippets** storage and attached with `--cicustom user=`. Because custom
 user-data replaces Proxmox's generated user block, the login user + hashed
-password live inside the YAML (`openssl passwd -6`).
+password live inside the YAML (`openssl passwd -6`). The **SIEM** uses an Ubuntu
+cloud image; the **analyst box** uses a **Kali** genericcloud image (a `.tar.xz`
+archive `fetch_cloud_image` extracts to its raw disk before import).
 
-- **Analyst box** uses the DC for DNS (so it can resolve/enumerate the domain)
-  and installs offensive/defensive tooling + a Wazuh agent.
+- **Analyst box** runs Kali with an XFCE desktop (LightDM auto-login + xrdp) and
+  the full Kali toolset by default (`SOC_LINUX_DESKTOP=0` for headless). It uses
+  the DC for DNS (so it can resolve/enumerate the domain) and ships a Wazuh agent.
 - **SIEM** uses the gateway for DNS and runs Wazuh's official all-in-one
   installer on first boot.
 
@@ -103,7 +106,10 @@ Two modes, chosen by `SOC_NET_MODE`:
   `# BEGIN/END easy-deploy-SOC` markers and applied with `ifreload -a`. Creation
   is idempotent — it only ever rewrites its own marked block — and it refuses to
   touch a bridge name that already exists and isn't ours. Teardown removes the
-  block and deletes the bridge.
+  block and deletes the bridge. When `SOC_PUBLISH_SIEM=1` (default) the same
+  block also adds a `DNAT` port-forward (`SOC_SIEM_PUBLISH_PORT`, default `8443`)
+  from the host to the SIEM's `:443`, so the Wazuh dashboard is reachable from a
+  machine off the lab subnet at `https://<proxmox-host-ip>:8443`.
 - **`existing`.** VMs attach to a bridge you already run (`SOC_BRIDGE`, default
   `vmbr0`) using a gateway/router you already have (`SOC_GATEWAY`). No host
   network configuration is changed.

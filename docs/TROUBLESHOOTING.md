@@ -15,6 +15,41 @@ Proxmox ISO storage.
    SOC_WINSRV_ISO_NAME=my-server2022.iso SOC_WIN11_ISO_NAME=my-win11.iso ./scripts/deploy-dc.sh
    ```
 
+## DC came up as Server Core (a CLI, no desktop)
+
+The DC is meant to install the **Desktop Experience** (full GUI) edition. Setup
+selects the edition by name (`SOC_WINSRV_IMAGE`, default
+`Windows Server 2022 Standard Evaluation (Desktop Experience)`). If your ISO
+labels that edition differently, Setup either halts or falls back to Server Core.
+
+List the exact edition names in your ISO and set the var to match:
+
+```powershell
+# On any Windows box, with the ISO mounted as D:
+dism /Get-WimInfo /WimFile:D:\sources\install.wim
+```
+
+```bash
+SOC_WINSRV_IMAGE="Windows Server 2022 Datacenter Evaluation (Desktop Experience)" \
+  ./scripts/deploy-dc.sh
+```
+
+## Reach the Wazuh dashboard from a PC that isn't on the lab network
+
+In the default `isolated` mode the deployer port-forwards the SIEM dashboard onto
+the Proxmox host: **`https://<proxmox-host-ip>:8443` → `10.0.0.40:443`**.
+
+- Change the host port with `SOC_SIEM_PUBLISH_PORT`, or disable the forward with
+  `SOC_PUBLISH_SIEM=0`.
+- Add it (or change the port) on an already-running lab from the menu's
+  **Publish** action — it rewrites the bridge's rules and reloads them.
+- Not reachable? The forward needs NAT (`SOC_NET_NAT=1`) and a working default
+  route on the host. Confirm the DNAT exists:
+  `iptables -t nat -L PREROUTING -n` should show a rule for the port →
+  `10.0.0.40:443`. If your host firewalls the `FORWARD` chain, allow it.
+- In `SOC_NET_MODE=existing` no host forward is added — publish the port on your
+  own router/firewall instead.
+
 ## Isolated lab network / no internet in the VMs
 
 In the default `isolated` mode the deployer adds a `vmbr9` bridge (`10.0.0.1/24`)
@@ -76,6 +111,22 @@ first ~2 minutes after the VM starts (`nudge_boot_from_cd` in
   Edit → Do not use any media*), and reboot. Windows' own UEFI boot entry then
   takes over. This is rare with the default `ide0;sata0` boot order.
 
+## Kali analyst box: image download or desktop didn't come up
+
+The analyst box (`soc-linux01`) runs **Kali Linux** with an XFCE desktop.
+
+- **Can't fetch the Kali image.** The deployer auto-discovers the newest
+  `genericcloud` image under `SOC_KALI_BASE_URL`
+  (`https://kali.download/cloud-images/current/`). If your host can't reach it,
+  pin a specific archive:
+  `SOC_KALI_IMG_URL=https://kali.download/cloud-images/current/kali-linux-<ver>-cloud-genericcloud-amd64.tar.xz`.
+  The `.tar.xz` is extracted automatically to the raw disk inside.
+- **Booted but no desktop.** The desktop + full toolset install on **first boot**
+  and take ~15–25 min over NAT — give it time, then check
+  `/var/log/soc-analyst-setup.log`. The console auto-logs into XFCE via LightDM;
+  you can also RDP to `10.0.0.30`.
+- **Want it headless?** Set `SOC_LINUX_DESKTOP=0` to skip the desktop entirely.
+
 ## Proxmox console (noVNC) is blank for the Linux / Wazuh VMs
 
 The Ubuntu VMs are created with a standard VGA display (`--vga std`) so the
@@ -127,7 +178,8 @@ The client points DNS at the DC and waits up to ~15 minutes for it. Check:
 - **Windows guests**: `C:\provision\*.log` (setup-dc, dc-stage2, join-domain,
   install-agents).
 - **Linux guests**: `/var/log/cloud-init-output.log`, plus
-  `/var/log/wazuh-install.log` (SIEM) / `/var/log/wazuh-agent-install.log`.
+  `/var/log/wazuh-install.log` (SIEM) and, on the Kali analyst box,
+  `/var/log/soc-analyst-setup.log` (desktop + toolset + agent install).
 
 ## Start over
 

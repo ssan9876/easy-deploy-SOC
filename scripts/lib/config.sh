@@ -31,6 +31,14 @@
 : "${SOC_GATEWAY:=10.0.0.1}"             # Lab gateway (the Proxmox host in isolated mode)
 : "${SOC_NETMASK:=24}"                   # CIDR prefix length
 
+# Publish the Wazuh dashboard off the isolated lab network so you can reach it
+# from a machine that is NOT on the Proxmox lab subnet. In isolated mode this
+# adds a port-forward (DNAT) on the Proxmox host: browse to
+# https://<proxmox-host-ip>:<SOC_SIEM_PUBLISH_PORT> and it lands on the SIEM's
+# :443. Set SOC_PUBLISH_SIEM=0 to keep the SIEM fully walled off.
+: "${SOC_PUBLISH_SIEM:=1}"               # 1 = port-forward the SIEM dashboard to the host
+: "${SOC_SIEM_PUBLISH_PORT:=8443}"       # Host port that forwards to the SIEM's :443
+
 # The bridge VMs attach to. In isolated mode this defaults to the lab bridge;
 # in existing mode it defaults to vmbr0. An explicit SOC_BRIDGE always wins.
 if [[ "$SOC_NET_MODE" == "isolated" ]]; then
@@ -53,15 +61,26 @@ fi
 : "${SOC_SIEM_NAME:=soc-wazuh01}"
 
 # --- Resources (cores / MB RAM / GB disk) -----------------------------------
+# The Linux analyst box runs a full Kali desktop (XFCE) + toolset by default, so
+# it is sized more generously than a headless box would be.
 : "${SOC_DC_CORES:=2}";     : "${SOC_DC_RAM:=4096}";     : "${SOC_DC_DISK:=60}"
 : "${SOC_CLIENT_CORES:=2}"; : "${SOC_CLIENT_RAM:=4096}"; : "${SOC_CLIENT_DISK:=64}"
-: "${SOC_LINUX_CORES:=2}";  : "${SOC_LINUX_RAM:=2048}";  : "${SOC_LINUX_DISK:=32}"
+: "${SOC_LINUX_CORES:=2}";  : "${SOC_LINUX_RAM:=4096}";  : "${SOC_LINUX_DISK:=60}"
 : "${SOC_SIEM_CORES:=4}";   : "${SOC_SIEM_RAM:=8192}";   : "${SOC_SIEM_DISK:=50}"
 
 # --- Storage ----------------------------------------------------------------
 : "${SOC_STORAGE:=}"                     # VM disk storage (blank => prompt/auto)
 : "${SOC_ISO_STORAGE:=local}"            # Storage that holds ISOs
 : "${SOC_SNIPPET_STORAGE:=local}"        # Storage for cloud-init snippets
+
+# --- Windows image selection ------------------------------------------------
+# Which edition inside the Windows Server ISO to install. The default is the
+# **Desktop Experience** (full GUI) edition so the DC is not a Server-Core CLI.
+# If your ISO uses a different label the install will halt — list the names in
+# your ISO with `dism /Get-WimInfo /WimFile:<mount>\sources\install.wim` and set
+# SOC_WINSRV_IMAGE to match (e.g. "...Datacenter Evaluation (Desktop Experience)").
+: "${SOC_WINSRV_IMAGE:=Windows Server 2022 Standard Evaluation (Desktop Experience)}"
+: "${SOC_WIN11_IMAGE:=Windows 11 Enterprise Evaluation}"
 
 # --- ISO sources (override if links rot or to use your own uploads) ---------
 # Windows Server 2022 Evaluation (180-day). From Microsoft Evaluation Center.
@@ -73,9 +92,20 @@ fi
 # VirtIO Windows drivers (stable, from Fedora).
 : "${SOC_VIRTIO_ISO_URL:=https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso}"
 : "${SOC_VIRTIO_ISO_NAME:=virtio-win.iso}"
-# Ubuntu cloud image for Linux VMs (analyst box + Wazuh SIEM).
+# Ubuntu cloud image for the Wazuh SIEM (kept lean/headless).
 : "${SOC_UBUNTU_IMG_URL:=https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img}"
 : "${SOC_UBUNTU_IMG_NAME:=jammy-server-cloudimg-amd64.img}"
+
+# --- Kali analyst box -------------------------------------------------------
+# The analyst/attacker box runs Kali Linux with an XFCE desktop by default.
+# Kali ships cloud-init "generic cloud" images as .tar.xz archives (containing a
+# raw disk); the deployer discovers the newest one under SOC_KALI_BASE_URL and
+# extracts it automatically. Pin SOC_KALI_IMG_URL/NAME to a specific file if the
+# auto-discovery can't reach kali.download.
+: "${SOC_LINUX_DESKTOP:=1}"              # 1 = install the Kali XFCE desktop (0 = headless Kali)
+: "${SOC_KALI_BASE_URL:=https://kali.download/cloud-images/current/}"
+: "${SOC_KALI_IMG_URL:=}"                # blank => auto-discover under SOC_KALI_BASE_URL
+: "${SOC_KALI_IMG_NAME:=}"               # blank => derived from the discovered URL
 
 # --- Security agents pushed onto Windows endpoints --------------------------
 : "${SOC_SYSMON_CONFIG_URL:=https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml}"

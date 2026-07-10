@@ -12,6 +12,9 @@ SOC_NET_END="# END easy-deploy-SOC lab network"
 # The host's default-route (WAN) interface, used as the NAT egress.
 wan_interface() { ip -4 route show default 2>/dev/null | awk '{print $5; exit}'; }
 
+# The host's primary LAN IP (what you'd browse to from your own PC).
+host_lan_ip() { ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'; }
+
 # Remove our managed block from /etc/network/interfaces (idempotent).
 _strip_net_block() {
   [[ -f "$SOC_IF_FILE" ]] || return 0
@@ -72,12 +75,30 @@ create_lab_network() {
       echo "    post-down iptables -D FORWARD -i ${br} -o ${wan} -j ACCEPT"
       echo "    post-up   iptables -A FORWARD -i ${wan} -o ${br} -m state --state RELATED,ESTABLISHED -j ACCEPT"
       echo "    post-down iptables -D FORWARD -i ${wan} -o ${br} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+
+      # Publish the Wazuh dashboard off the lab: forward host:<port> -> SIEM:443
+      # so a machine that isn't on the lab subnet can reach it via the host IP.
+      if [[ "$SOC_PUBLISH_SIEM" == "1" ]]; then
+        local port="$SOC_SIEM_PUBLISH_PORT" siem="$SOC_SIEM_IP"
+        echo "    post-up   iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to-destination ${siem}:443"
+        echo "    post-down iptables -t nat -D PREROUTING -p tcp --dport ${port} -j DNAT --to-destination ${siem}:443"
+        # Host-originated access (browsing from the Proxmox host itself).
+        echo "    post-up   iptables -t nat -A OUTPUT -p tcp -o lo --dport ${port} -j DNAT --to-destination ${siem}:443"
+        echo "    post-down iptables -t nat -D OUTPUT -p tcp -o lo --dport ${port} -j DNAT --to-destination ${siem}:443"
+        # Allow the forwarded connection through to the SIEM.
+        echo "    post-up   iptables -A FORWARD -i ${wan} -o ${br} -p tcp -d ${siem} --dport 443 -j ACCEPT"
+        echo "    post-down iptables -D FORWARD -i ${wan} -o ${br} -p tcp -d ${siem} --dport 443 -j ACCEPT"
+      fi
     fi
     echo "$SOC_NET_END"
   } >> "$SOC_IF_FILE"
 
   _apply_net
   msg_ok "Lab network ${br} is up. Gateway ${gw}/${prefix}${wan:+, NAT out ${wan}}."
+  if [[ "$SOC_PUBLISH_SIEM" == "1" && "$SOC_NET_NAT" == "1" && -n "$wan" ]]; then
+    local hip; hip="$(host_lan_ip)"
+    msg_ok "Wazuh dashboard published: https://${hip:-<proxmox-host-ip>}:${SOC_SIEM_PUBLISH_PORT}  ->  ${SOC_SIEM_IP}:443"
+  fi
   state_set SOC_NET_BRIDGE "$br"
 }
 

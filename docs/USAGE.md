@@ -11,6 +11,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ssan9876/easy-deploy-SOC
 Choose **Deploy the FULL SOC lab**, confirm the summary, and walk away. Or deploy
 pieces one at a time from the menu / the scripts in `scripts/`.
 
+Want your own passwords? Open **Configure** first — it prompts for the Windows
+admin and lab-user passwords (or set `SOC_ADMIN_PASSWORD` / `SOC_USER_PASSWORD`).
+Leave them blank to have strong ones generated.
+
 ### Rough timings
 
 | Phase | Time |
@@ -38,14 +42,20 @@ cat /var/lib/easy-deploy-soc/lab.env
   `Administrator` / `SOC_ADMIN_PASSWORD` (DC) or `labadmin` (client). After the
   join, log into the client with `SOCLAB\Administrator` too.
 - **SSH** to the analyst box (`10.0.0.30`) and SIEM (`10.0.0.40`) as
-  `analyst` / `SOC_USER_PASSWORD`.
+  `analyst` / `SOC_USER_PASSWORD`. The analyst box is **Kali with an XFCE
+  desktop** — open its Proxmox console (it auto-logs into the desktop) or RDP to
+  `10.0.0.30`.
 - **Wazuh dashboard**: `https://10.0.0.40` as `admin`. The generated admin
   password is on the SIEM VM at `/root/WAZUH-CREDENTIALS.txt`.
 
-> In the default isolated network the lab lives on its own `10.0.0.0/24` bridge
-> (`vmbr9`). To reach these IPs from your workstation, connect from the Proxmox
-> host (which is on `10.0.0.1`), use the VM consoles in the Proxmox UI, or add a
-> route to `10.0.0.0/24` via the Proxmox host.
+> **Reaching Wazuh from your own PC.** In the default isolated network the lab
+> lives on its own `10.0.0.0/24` bridge (`vmbr9`) your workstation can't route
+> to. The deployer publishes the dashboard on the Proxmox host, so browse to
+> `https://<proxmox-host-ip>:8443` (change the port with
+> `SOC_SIEM_PUBLISH_PORT`, disable with `SOC_PUBLISH_SIEM=0`, or add/adjust it
+> later from the **Publish** menu action). To reach the *other* lab IPs, connect
+> from the Proxmox host (on `10.0.0.1`), use the VM consoles in the Proxmox UI,
+> or add a route to `10.0.0.0/24` via the Proxmox host.
 
 Confirm telemetry is flowing under **Wazuh → Agents** — you should see
 `soc-dc01`, `soc-win11`, and `soc-linux01` reporting.

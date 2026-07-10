@@ -28,7 +28,8 @@ deploy_client() {
   local A="${SOC_ASSET_DIR}/autounattend"
 
   render_template "${A}/client/autounattend.xml" "${work}/autounattend.xml" \
-    "HOSTNAME=${SOC_CLIENT_NAME}" "ADMINPASS=$(xml_escape "${SOC_ADMIN_PASSWORD}")"
+    "HOSTNAME=${SOC_CLIENT_NAME}" "ADMINPASS=$(xml_escape "${SOC_ADMIN_PASSWORD}")" \
+    "IMAGE=$(xml_escape "${SOC_WIN11_IMAGE}")"
   render_template "${A}/client/join-domain.ps1" "${work}/provision/join-domain.ps1" \
     "DOMAIN=${SOC_DOMAIN}" "IP=${SOC_CLIENT_IP}" "PREFIX=${SOC_NETMASK}" \
     "GATEWAY=${SOC_GATEWAY}" "DC_IP=${SOC_DC_IP}" "SIEM_IP=${SOC_SIEM_IP}" \

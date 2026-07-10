@@ -127,18 +127,66 @@ resolve_snippet_storage() {
 }
 
 # Download a disk image (cloud image) to a local cache dir; echo its path.
+# If the file is a .tar.xz/.tar.gz archive (e.g. Kali's genericcloud images),
+# extract it and echo the raw/qcow2 disk inside instead.
 fetch_cloud_image() { # url name
   local url="$1" name="$2"
   local cache="/var/lib/easy-deploy-soc/images"
   mkdir -p "$cache"
   local dest="${cache}/${name}"
-  if [[ -f "$dest" ]]; then msg_ok "Cloud image cached: ${name}"; echo "$dest"; return; fi
-  msg_info "Downloading cloud image ${name} ..."
+  if [[ -f "$dest" ]]; then
+    msg_ok "Cloud image cached: ${name}"
+  else
+    msg_info "Downloading cloud image ${name} ..."
+    ensure_cmd curl
+    curl -fL# --retry 3 -o "${dest}.part" "$url" || { rm -f "${dest}.part"; return 1; }
+    mv "${dest}.part" "$dest"
+    msg_ok "Downloaded ${name}"
+  fi
+
+  case "$name" in
+    *.tar.xz|*.txz|*.tar.gz|*.tgz)
+      local exdir="${cache}/${name%.tar.*}.d"
+      local disk
+      # Reuse a prior extraction if the disk is already there.
+      disk="$(find "$exdir" -maxdepth 2 -type f \
+                \( -name '*.raw' -o -name 'disk.raw' -o -name '*.qcow2' -o -name '*.img' \) 2>/dev/null | head -n1)"
+      if [[ -z "$disk" ]]; then
+        msg_info "Extracting ${name} ..."
+        ensure_cmd tar
+        rm -rf "$exdir"; mkdir -p "$exdir"
+        tar -xf "$dest" -C "$exdir" || { msg_error "Failed to extract ${name}."; return 1; }
+        disk="$(find "$exdir" -maxdepth 2 -type f \
+                  \( -name '*.raw' -o -name 'disk.raw' -o -name '*.qcow2' -o -name '*.img' \) 2>/dev/null | head -n1)"
+      fi
+      [[ -z "$disk" ]] && { msg_error "No disk image found inside ${name}."; return 1; }
+      msg_ok "Disk image ready: ${disk##*/}"
+      echo "$disk"
+      ;;
+    *)
+      echo "$dest"
+      ;;
+  esac
+}
+
+# Resolve the Kali cloud image. Honors SOC_KALI_IMG_URL/NAME if set; otherwise
+# discovers the newest genericcloud amd64 archive under SOC_KALI_BASE_URL.
+# Echoes "URL<TAB>NAME".
+resolve_kali_image() {
+  local url="${SOC_KALI_IMG_URL:-}" name="${SOC_KALI_IMG_NAME:-}"
+  if [[ -n "$url" ]]; then
+    [[ -z "$name" ]] && name="${url##*/}"
+    printf '%s\t%s\n' "$url" "$name"; return 0
+  fi
   ensure_cmd curl
-  curl -fL# --retry 3 -o "${dest}.part" "$url" || { rm -f "${dest}.part"; return 1; }
-  mv "${dest}.part" "$dest"
-  msg_ok "Downloaded ${name}"
-  echo "$dest"
+  local base="${SOC_KALI_BASE_URL%/}/"
+  local file
+  file="$(curl -fsSL "$base" 2>/dev/null \
+            | grep -oE 'kali-linux-[0-9.]+-cloud-genericcloud-amd64\.tar\.xz' \
+            | sort -u | tail -n1)"
+  [[ -z "$file" ]] && { msg_error "Could not discover a Kali cloud image at ${base}."; \
+      msg_warn "Set SOC_KALI_IMG_URL/SOC_KALI_IMG_NAME to a working image."; return 1; }
+  printf '%s\t%s\n' "${base}${file}" "$file"; return 0
 }
 
 # Wait until a VM's qemu-guest-agent responds (best-effort, bounded).
