@@ -88,6 +88,20 @@
   </settings>
 
   <settings pass="oobeSystem">
+    <!-- Windows 11's OOBE shows an interactive "Is this the right country or
+         region?" page (and a keyboard page) that the OOBE Hide* flags do NOT
+         suppress. They are only skipped when International-Core is present in
+         THIS oobeSystem pass; the copy in windowsPE is not enough. Without
+         this the client install stalls waiting for a click. (Windows Server's
+         OOBE has no region page, so the DC answer file doesn't need it.) -->
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UILanguageFallback>en-US</UILanguageFallback>
+      <UserLocale>en-US</UserLocale>
+    </component>
     <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64"
                publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <OOBE>
