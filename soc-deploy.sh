@@ -154,6 +154,14 @@ deploy_full() {
     msg_warn "Cancelled."; return
   fi
   init_lab_secrets
+  # Resolve the VM-disk storage once, here in the parent shell, and export it so
+  # all four deploys reuse it. resolve_disk_storage runs in a subshell when each
+  # deploy calls "$(...)", so it can't persist the choice itself — without this
+  # the operator would be asked to pick storage separately for every VM.
+  if [[ -z "$SOC_STORAGE" ]]; then
+    SOC_STORAGE="$(resolve_disk_storage)" || { msg_warn "No storage selected."; return; }
+    export SOC_STORAGE
+  fi
   # In isolated mode, stand up the private bridge + NAT before any VM boots.
   [[ "$SOC_NET_MODE" == "isolated" ]] && create_lab_network
   # SIEM first (long install), then DC, then Linux, then client (waits for DC).
