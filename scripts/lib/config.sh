@@ -39,6 +39,15 @@
 : "${SOC_PUBLISH_SIEM:=1}"               # 1 = port-forward the SIEM dashboard to the host
 : "${SOC_SIEM_PUBLISH_PORT:=8443}"       # Host port that forwards to the SIEM's :443
 
+# Publish RDP for the desktop VMs off the isolated lab, the same way as the SIEM
+# dashboard: from a machine that is NOT on the lab subnet, point Remote Desktop
+# at <proxmox-host-ip>:<port> and it lands on that VM's :3389. Set
+# SOC_PUBLISH_RDP=0 to keep the desktops reachable only from inside the lab.
+: "${SOC_PUBLISH_RDP:=1}"                 # 1 = port-forward RDP for the desktop VMs to the host
+: "${SOC_RDP_DC_PORT:=13389}"            # Host port -> Domain Controller (SOC_DC_IP:3389)
+: "${SOC_RDP_CLIENT_PORT:=23389}"        # Host port -> Windows client   (SOC_CLIENT_IP:3389)
+: "${SOC_RDP_LINUX_PORT:=33389}"         # Host port -> Kali analyst box  (SOC_LINUX_IP:3389)
+
 # The bridge VMs attach to. In isolated mode this defaults to the lab bridge;
 # in existing mode it defaults to vmbr0. An explicit SOC_BRIDGE always wins.
 if [[ "$SOC_NET_MODE" == "isolated" ]]; then

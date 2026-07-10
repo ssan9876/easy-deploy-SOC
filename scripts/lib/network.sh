@@ -15,6 +15,20 @@ wan_interface() { ip -4 route show default 2>/dev/null | awk '{print $5; exit}';
 # The host's primary LAN IP (what you'd browse to from your own PC).
 host_lan_ip() { ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'; }
 
+# Emit the post-up/post-down interfaces lines that publish a lab service off the
+# host: forward host:<host_port> -> <dest_ip>:<dest_port>. Handles external
+# clients (PREROUTING), host-originated access (OUTPUT), and the FORWARD accept.
+# Used for both the SIEM dashboard and per-VM RDP so the rules stay identical.
+_emit_publish_fwd() { # wan br host_port dest_ip dest_port
+  local wan="$1" br="$2" hp="$3" dip="$4" dp="$5"
+  echo "    post-up   iptables -t nat -A PREROUTING -p tcp --dport ${hp} -j DNAT --to-destination ${dip}:${dp}"
+  echo "    post-down iptables -t nat -D PREROUTING -p tcp --dport ${hp} -j DNAT --to-destination ${dip}:${dp}"
+  echo "    post-up   iptables -t nat -A OUTPUT -p tcp -o lo --dport ${hp} -j DNAT --to-destination ${dip}:${dp}"
+  echo "    post-down iptables -t nat -D OUTPUT -p tcp -o lo --dport ${hp} -j DNAT --to-destination ${dip}:${dp}"
+  echo "    post-up   iptables -A FORWARD -i ${wan} -o ${br} -p tcp -d ${dip} --dport ${dp} -j ACCEPT"
+  echo "    post-down iptables -D FORWARD -i ${wan} -o ${br} -p tcp -d ${dip} --dport ${dp} -j ACCEPT"
+}
+
 # Remove our managed block from /etc/network/interfaces (idempotent).
 _strip_net_block() {
   [[ -f "$SOC_IF_FILE" ]] || return 0
@@ -79,15 +93,15 @@ create_lab_network() {
       # Publish the Wazuh dashboard off the lab: forward host:<port> -> SIEM:443
       # so a machine that isn't on the lab subnet can reach it via the host IP.
       if [[ "$SOC_PUBLISH_SIEM" == "1" ]]; then
-        local port="$SOC_SIEM_PUBLISH_PORT" siem="$SOC_SIEM_IP"
-        echo "    post-up   iptables -t nat -A PREROUTING -p tcp --dport ${port} -j DNAT --to-destination ${siem}:443"
-        echo "    post-down iptables -t nat -D PREROUTING -p tcp --dport ${port} -j DNAT --to-destination ${siem}:443"
-        # Host-originated access (browsing from the Proxmox host itself).
-        echo "    post-up   iptables -t nat -A OUTPUT -p tcp -o lo --dport ${port} -j DNAT --to-destination ${siem}:443"
-        echo "    post-down iptables -t nat -D OUTPUT -p tcp -o lo --dport ${port} -j DNAT --to-destination ${siem}:443"
-        # Allow the forwarded connection through to the SIEM.
-        echo "    post-up   iptables -A FORWARD -i ${wan} -o ${br} -p tcp -d ${siem} --dport 443 -j ACCEPT"
-        echo "    post-down iptables -D FORWARD -i ${wan} -o ${br} -p tcp -d ${siem} --dport 443 -j ACCEPT"
+        _emit_publish_fwd "$wan" "$br" "$SOC_SIEM_PUBLISH_PORT" "$SOC_SIEM_IP" 443
+      fi
+
+      # Publish RDP for the desktop VMs the same way: host:<port> -> VM:3389, so
+      # users can Remote Desktop to the host IP instead of joining the lab subnet.
+      if [[ "$SOC_PUBLISH_RDP" == "1" ]]; then
+        _emit_publish_fwd "$wan" "$br" "$SOC_RDP_DC_PORT"     "$SOC_DC_IP"     3389
+        _emit_publish_fwd "$wan" "$br" "$SOC_RDP_CLIENT_PORT" "$SOC_CLIENT_IP" 3389
+        _emit_publish_fwd "$wan" "$br" "$SOC_RDP_LINUX_PORT"  "$SOC_LINUX_IP"  3389
       fi
     fi
     echo "$SOC_NET_END"
@@ -95,9 +109,17 @@ create_lab_network() {
 
   _apply_net
   msg_ok "Lab network ${br} is up. Gateway ${gw}/${prefix}${wan:+, NAT out ${wan}}."
-  if [[ "$SOC_PUBLISH_SIEM" == "1" && "$SOC_NET_NAT" == "1" && -n "$wan" ]]; then
-    local hip; hip="$(host_lan_ip)"
-    msg_ok "Wazuh dashboard published: https://${hip:-<proxmox-host-ip>}:${SOC_SIEM_PUBLISH_PORT}  ->  ${SOC_SIEM_IP}:443"
+  if [[ "$SOC_NET_NAT" == "1" && -n "$wan" ]]; then
+    local hip; hip="$(host_lan_ip)"; hip="${hip:-<proxmox-host-ip>}"
+    if [[ "$SOC_PUBLISH_SIEM" == "1" ]]; then
+      msg_ok "Wazuh dashboard published: https://${hip}:${SOC_SIEM_PUBLISH_PORT}  ->  ${SOC_SIEM_IP}:443"
+    fi
+    if [[ "$SOC_PUBLISH_RDP" == "1" ]]; then
+      msg_ok "RDP published (point Remote Desktop at the host):"
+      msg_ok "  ${hip}:${SOC_RDP_DC_PORT}  ->  ${SOC_DC_NAME} (${SOC_DC_IP})"
+      msg_ok "  ${hip}:${SOC_RDP_CLIENT_PORT}  ->  ${SOC_CLIENT_NAME} (${SOC_CLIENT_IP})"
+      msg_ok "  ${hip}:${SOC_RDP_LINUX_PORT}  ->  ${SOC_LINUX_NAME} (${SOC_LINUX_IP})"
+    fi
   fi
   state_set SOC_NET_BRIDGE "$br"
 }

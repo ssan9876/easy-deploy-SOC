@@ -179,10 +179,17 @@ EOF
     local hip; hip="$(host_lan_ip)"
     echo "    • Wazuh dashboard (from your own PC): https://${hip:-<proxmox-host-ip>}:${SOC_SIEM_PUBLISH_PORT}"
   fi
+  if [[ "$SOC_NET_MODE" == "isolated" && "$SOC_PUBLISH_RDP" == "1" ]]; then
+    local hip2; hip2="$(host_lan_ip)"; hip2="${hip2:-<proxmox-host-ip>}"
+    echo "    • RDP from your own PC (point Remote Desktop at the Proxmox host):"
+    echo "        ${hip2}:${SOC_RDP_DC_PORT}  -> ${SOC_DC_NAME} (Administrator)"
+    echo "        ${hip2}:${SOC_RDP_CLIENT_PORT}  -> ${SOC_CLIENT_NAME} (labadmin)"
+    echo "        ${hip2}:${SOC_RDP_LINUX_PORT}  -> ${SOC_LINUX_NAME} / Kali (${SOC_LINUX_USER})"
+  fi
   cat <<EOF
     • Endpoints appear in Wazuh > Agents as they finish provisioning.
-    • RDP to ${SOC_DC_IP} (Server desktop) / ${SOC_CLIENT_IP}; SSH to ${SOC_LINUX_IP} / ${SOC_SIEM_IP}.
-    • ${SOC_LINUX_NAME} is Kali w/ XFCE desktop — open its Proxmox console or RDP to ${SOC_LINUX_IP}.
+    • On the lab net directly: RDP ${SOC_DC_IP} / ${SOC_CLIENT_IP} / ${SOC_LINUX_IP}; SSH ${SOC_LINUX_IP} / ${SOC_SIEM_IP}.
+    • ${SOC_LINUX_NAME} is Kali w/ XFCE desktop — RDP to it or open its Proxmox console.
 EOF
 }
 
