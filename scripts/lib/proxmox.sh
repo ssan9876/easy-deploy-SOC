@@ -22,14 +22,21 @@ storages_supporting() { # content
 }
 
 # Pick a VM-disk storage: honor SOC_STORAGE, else auto-pick first, else prompt.
+# Caches the choice back into SOC_STORAGE so a full deploy (4 VMs) only asks once.
 resolve_disk_storage() {
   if [[ -n "$SOC_STORAGE" ]]; then echo "$SOC_STORAGE"; return; fi
   local -a opts=()
   while read -r s; do [[ -n "$s" ]] && opts+=("$s" "images storage"); done \
     < <(storages_supporting images)
   [[ ${#opts[@]} -eq 0 ]] && die "No storage supporting VM images found."
-  if [[ ${#opts[@]} -eq 2 ]]; then echo "${opts[0]}"; return; fi
-  wt_menu "Storage" "Select storage for VM disks:" "${opts[@]}"
+  local picked
+  if [[ ${#opts[@]} -eq 2 ]]; then
+    picked="${opts[0]}"
+  else
+    picked="$(wt_menu "Storage" "Select storage for VM disks (used for all lab VMs):" "${opts[@]}")" || return 1
+  fi
+  export SOC_STORAGE="$picked"
+  echo "$picked"
 }
 
 # Where is an ISO storage mounted on the filesystem? (for building custom ISOs)

@@ -39,6 +39,7 @@ deploy_client() {
     "WAZUH_AGENT_MSI_URL=${SOC_WAZUH_AGENT_MSI_URL}"
 
   local answer_iso; answer_iso="$(build_answer_iso "$work" "soc-client-answer-${vmid}.iso")"
+  rm -rf "$work"; trap - RETURN
 
   build_windows_vm "$vmid" "$SOC_CLIENT_NAME" "win11" \
     "$SOC_CLIENT_CORES" "$SOC_CLIENT_RAM" "$SOC_CLIENT_DISK" \

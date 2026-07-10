@@ -45,6 +45,7 @@ deploy_dc() {
     "WAZUH_AGENT_MSI_URL=${SOC_WAZUH_AGENT_MSI_URL}"
 
   local answer_iso; answer_iso="$(build_answer_iso "$work" "soc-dc-answer-${vmid}.iso")"
+  rm -rf "$work"; trap - RETURN
 
   build_windows_vm "$vmid" "$SOC_DC_NAME" "win11" \
     "$SOC_DC_CORES" "$SOC_DC_RAM" "$SOC_DC_DISK" \
