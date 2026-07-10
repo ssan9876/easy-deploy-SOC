@@ -84,13 +84,35 @@ port with `SOC_SIEM_PUBLISH_PORT`, or turn the forward off with
 `SOC_PUBLISH_SIEM=0`. The **Configure** menu also asks, and there's a
 **Publish** menu action to add it to an already-running lab.
 
-### Desktops & remote access
+### Desktops & remote access (RDP from your own PC)
 
-- **`soc-dc01`** installs the full Windows Server **Desktop Experience** GUI.
-  RDP to `10.0.0.10` or use the Proxmox console.
-- **`soc-linux01`** is **Kali with an XFCE desktop** — open the Proxmox console
-  (it auto-logs into the desktop) or RDP to `10.0.0.30`. Set `SOC_LINUX_DESKTOP=0`
-  for a headless Kali box instead.
+All three desktop VMs come up with RDP enabled (the Windows boxes via their
+answer files, Kali via `xrdp`). But the lab lives on an isolated subnet your
+workstation can't route to — so, exactly like the Wazuh dashboard, the deployer
+(in the default isolated mode) **publishes each desktop's RDP on the Proxmox
+host**. Point Remote Desktop at the host IP on these ports:
+
+| Connect to | Lands on | Default login |
+|-----------|----------|---------------|
+| `<proxmox-host-ip>:13389` | `soc-dc01` (Windows Server desktop) | `Administrator` |
+| `<proxmox-host-ip>:23389` | `soc-win11` (Windows 11 client) | `labadmin` |
+| `<proxmox-host-ip>:33389` | `soc-linux01` (Kali XFCE desktop) | `analyst` |
+
+(On Windows `mstsc`, put e.g. `192.168.88.4:13389` in the Computer field; other
+clients take the host and port separately. Passwords are in
+`/var/lib/easy-deploy-soc/lab.env`.) The exact map is also printed at the end of
+a deploy and by the menu's **Info** action.
+
+- Change the host ports with `SOC_RDP_DC_PORT` / `SOC_RDP_CLIENT_PORT` /
+  `SOC_RDP_LINUX_PORT`, or turn the forwards off with `SOC_PUBLISH_RDP=0` (the
+  desktops then remain reachable only from inside the lab subnet or the Proxmox
+  console). The **Publish** menu action adds the forwards to an already-running
+  lab.
+- On the lab subnet directly, RDP straight to `10.0.0.10` / `10.0.0.20` /
+  `10.0.0.30`. Set `SOC_LINUX_DESKTOP=0` for a headless Kali box instead.
+- These ports are exposed on the Proxmox host's LAN interface, guarded only by
+  the VM passwords — fine for a trusted homelab. In `SOC_NET_MODE=existing` no
+  host forward is added; publish RDP on your own router/firewall instead.
 
 ## Why these components
 
